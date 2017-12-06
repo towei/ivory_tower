@@ -1,0 +1,96 @@
+import numpy as np
+import math
+
+DNA_SIZE = 29            # DNA length
+POP_SIZE = 300           # population size
+CROSS_RATE = 0.8         # mating probability (DNA crossover)
+MUTATION_RATE = 0.003    # mutation probability
+N_GENERATIONS = 100
+X1_BOUND = [-3.0, 12.1] # x1 upper and lower bounds
+X1_SIZE = 16
+X2_BOUND = [4.1, 5.8]
+X2_SIZE = 13
+
+# to find the maximum of this function
+def F(x_v):
+    fit = np.zeros(POP_SIZE)
+    for x in range(POP_SIZE):
+        x11 = x_v[x][0]
+        x22 = x_v[x][1]
+        fit[x] = np.sin(4*math.pi*x11)*x11 + np.sin(20*math.pi*x22)*x22 + 21.5
+    return fit
+
+
+# find non-zero fitness for selection
+def get_fitness(pred):
+    return pred + 1e-3 - np.min(pred)
+
+
+# convert binary DNA to decimal and normalize it to a range(0, 5)
+def translateDNA(pop):
+    x_v = np.zeros((POP_SIZE,2))
+    for x in range(POP_SIZE):
+        pop1 = pop[x][:X1_SIZE]
+        pop2 = pop[x][X1_SIZE:]
+        for ix1 in range(X1_SIZE):
+            x1 = pop1.dot(2 ** np.arange(X1_SIZE)[::-1]) / float(2**X1_SIZE) * 15.1 - 3.0
+        for ix2 in range(X1_SIZE+1,DNA_SIZE):
+            x2 = pop2.dot(2 ** np.arange(X2_SIZE)[::-1]) / float(2**X2_SIZE) * 1.7 + 4.1
+        x_v[x:] = [[x1,x2]]
+    return x_v
+
+def select(pop, fitness):    # nature selection wrt pop's fitness
+    idx = np.random.choice(np.arange(POP_SIZE), size=POP_SIZE, replace=True,p=fitness/fitness.sum())
+    return pop[idx]
+
+
+def crossover(parent, pop):     # mating process (genes crossover)
+    if np.random.rand() < CROSS_RATE:
+        i_ = np.random.randint(0, POP_SIZE, size=1)                             # select another individual from pop
+        cross_points = np.random.randint(0, 2, size=DNA_SIZE).astype(np.bool)   # choose crossover points
+        parent[cross_points] = pop[i_, cross_points]                            # mating and produce one child
+    return parent
+
+
+def mutate(child):
+    for point in range(DNA_SIZE):
+        if np.random.rand() < MUTATION_RATE:
+            child[point] = 1 if child[point] == 0 else 0
+    return child
+
+
+pop = np.random.randint(0, 2, (POP_SIZE, DNA_SIZE)) # initialize the pop DNA
+maxfit = 0
+gene = 0
+
+for gen in range(N_GENERATIONS):
+    F_values = F(translateDNA(pop))  # compute function value by extracting DNA
+    fitness = get_fitness(F_values)
+    popp = pop[np.argmax(fitness), :]
+    print("Most fitted DNA in",str(gen),": ")
+    print(popp)
+    pop1 = popp[:16]
+    pop2 = popp[16:]
+    x_v = np.zeros((1, 2))
+    for ix1 in range(16):
+        x1 = pop1.dot(2 ** np.arange(16)[::-1]) / float(2**16) * 15.1 - 3.0
+    for ix2 in range(17,29):
+        x2 = pop2.dot(2 ** np.arange(13)[::-1]) / float(2**13) * 1.7 + 4.1
+    x_v = [x1,x2]
+    print(x_v)
+    fit = np.sin(4 * math.pi * x1) * x1 + np.sin(20 * math.pi * x2) * x2 + 21.5
+    print (fit)
+    if fit >= maxfit:
+        gene = gen
+        maxfit = fit
+        maxx1x2 = x_v
+    pop = select(pop, fitness)
+    pop_copy = pop.copy()
+    for parent in pop:
+        child = crossover(parent, pop_copy)
+        child = mutate(child)
+        parent[:] = child       # parent is replaced by its child
+
+print("Most fitted DNA of the all generations is in",str(gene),": ")
+print(maxfit)
+print(maxx1x2)
