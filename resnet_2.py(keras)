@@ -1,0 +1,77 @@
+import keras
+from keras.models import Model
+from keras.layers import Conv2D,BatchNormalization,Input,SeparableConv2D,Activation
+import numpy as np
+import skimage.io as io
+import keras.layers.advanced_activations
+
+
+batch_size=2
+height=256
+width=256
+
+#cool1 mohu, cool2 qingchu
+str1='/home/xdml/PycharmProjects/dltower/trainx_image/'+'*.jpg'
+coll1 = io.ImageCollection(str1)
+str2='/home/xdml/PycharmProjects/dltower/trainy_image/'+'*.jpg'
+coll2 = io.ImageCollection(str2)
+str3='/home/xdml/PycharmProjects/dltower/testx_image/'+'*.jpg'
+coll3 = io.ImageCollection(str3)
+str4='/home/xdml/PycharmProjects/dltower/testy_image/'+'*.jpg'
+coll4 = io.ImageCollection(str4)
+
+im = []
+bg = []
+for i in range(6):
+    l = coll1[i]
+    k = coll2[i]
+    im.append(l)
+    bg.append(k)
+im = np.float32(np.asarray(im))
+bg = np.float32(np.asarray(bg))
+x_train = (im-127.5)
+y_train = (bg-127.5)
+
+ims = []
+bgs = []
+for i in range(4):
+    l = coll3[i]
+    k = coll4[i]
+    ims.append(l)
+    bgs.append(k)
+
+ims = np.float32(np.asarray(ims))
+bgs = np.float32(np.asarray(bgs))
+x_test = (ims-127.5)
+y_test = (bgs-127.5)
+
+input_shape = x_train.shape[1:]
+inputs = Input(shape=input_shape)
+
+def resnet_block(x_in):
+    y = x_in
+    x = BatchNormalization()(x_in)
+    x = Activation(keras.layers.advanced_activations.LeakyReLU(alpha=0.3))(x)
+    x = Conv2D(64,kernel_size=(3,3),strides=1,padding='same')(x)
+    x = BatchNormalization()(x)
+    x = Activation(keras.layers.advanced_activations.LeakyReLU(alpha=0.3))(x)
+    x = Conv2D(64, kernel_size=(3, 3), strides=1, padding='same',dilation_rate=2)(x)
+    x = BatchNormalization()(x)
+    x = Activation(keras.layers.advanced_activations.LeakyReLU(alpha=0.3))(x)
+    x = Conv2D(64, kernel_size=(3, 3), strides=1, padding='same')(x)
+    x = keras.layers.add([x, y])
+    return x
+
+x = Conv2D(64, (3, 3), strides=1,padding='same',input_shape=input_shape)(inputs)
+x = BatchNormalization()(x)
+x = Activation(keras.layers.advanced_activations.LeakyReLU(alpha=0.3))(x)
+x = Conv2D(64, (3, 3), strides=1,padding='same')(x)
+for i in range(2):
+    x = resnet_block(x)
+x = SeparableConv2D(64, (3, 3), strides=1,padding='same')(x)
+out = Conv2D(3, (3, 3), strides=1,padding='same',activation=None)(x)
+
+model = Model(inputs=inputs, outputs=out)
+model.compile(optimizer='Adam',loss='mse',metrics=None)
+model.fit(x=x_train, y=y_train, batch_size=batch_size, epochs=10, verbose=1)
+print(model.evaluate(x=x_test, y=y_test, batch_size=2, verbose=1))
