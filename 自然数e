@@ -2,7 +2,7 @@
 x = 1
 d = input('biger: ')
 b = int(d)
-for i in range (1,b):
+for i in range (0,b):
     li = x/b
     x = x+li
 print(x)
